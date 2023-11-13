@@ -6,7 +6,7 @@
 <title>Mirrored Drawing Canvas</title>
 <style>
   body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
-  #drawingCanvas { border: 1px solid #000; background-color: #fff; }
+  #drawingCanvas { border: 1px solid #000; background-color: #fff; touch-action: none; }
   .tool { margin-top: 10px; }
   label { margin-right: 10px; }
 </style>
@@ -76,37 +76,19 @@
     reader.readAsDataURL(file);
   });
 
-  canvas.addEventListener('mousedown', (e) => {
-    isDrawing = true;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    draw(x, y); // Start drawing at the point
-  });
-
-  canvas.addEventListener('mousemove', (e) => {
-    if (isDrawing) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      draw(x, y);
-    }
-  });
-
-  canvas.addEventListener('mouseup', () => {
-    isDrawing = false;
-  });
-
-  canvas.addEventListener('mouseout', () => {
-    isDrawing = false;
-  });
+  function getTouchPos(canvasDom, touchEvent) {
+    var rect = canvasDom.getBoundingClientRect();
+    return {
+      x: touchEvent.touches[0].clientX - rect.left,
+      y: touchEvent.touches[0].clientY - rect.top
+    };
+  }
 
   function draw(x, y) {
     if (!isDrawing) return;
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     
-    // If a pattern is selected, use it; otherwise, use the selected color
     ctx.strokeStyle = brushPattern || brushColor;
 
     const angleIncrement = (Math.PI * 2) / mirrorCount;
@@ -123,6 +105,65 @@
     
     ctx.restore();
   }
+
+  // Mouse Event Listeners
+  canvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    draw(e.offsetX, e.offsetY); // Start drawing at the point
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (isDrawing) {
+      draw(e.offsetX, e.offsetY);
+    }
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    isDrawing = false;
+  });
+
+  canvas.addEventListener('mouseout', () => {
+    isDrawing = false;
+  });
+
+  // Touch Event Listeners
+  canvas.addEventListener('touchstart', (e) => {
+    const touch = getTouchPos(canvas, e);
+    isDrawing = true;
+    draw(touch.x, touch.y);
+    e.preventDefault(); // Prevent scrolling when touching the canvas
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (isDrawing) {
+      const touch = getTouchPos(canvas, e);
+      draw(touch.x, touch.y);
+      e.preventDefault(); // Prevent scrolling when touching the canvas
+    }
+  });
+
+  canvas.addEventListener('touchend', () => {
+    isDrawing = false;
+  });
+
+  // Prevent scrolling when touching the canvas
+  document.body.addEventListener('touchstart', (e) => {
+    if (e.target == canvas) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  document.body.addEventListener('touchend', (e) => {
+    if (e.target == canvas) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  document.body.addEventListener('touchmove', (e) => {
+    if (e.target == canvas) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 
   // Initial brush setup
   ctx.strokeStyle = brushColor;
