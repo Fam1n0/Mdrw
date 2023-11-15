@@ -13,8 +13,8 @@
             align-items: center;
             height: 100vh;
             flex-direction: column;
-            background-color: #000000; /* Background color is black */
-            color: #FFFFFF; /* Font color is white */
+            background-color: #000000;
+            color: #FFFFFF;
         }
         #drawingCanvas {
             border: 1px solid #000;
@@ -50,44 +50,46 @@
     <script>
         let brushSize, brushColor, brushPattern;
         let imgPattern; // For the image pattern
+        let mirrorCount = 6;
 
         function setup() {
             let cnv = createCanvas(800, 800);
-            cnv.parent('drawingCanvas'); // Attach the canvas to the existing div
-            background(255); // Set initial canvas background
+            cnv.parent('drawingCanvas');
+            background(255);
 
-            // Initial brush setup
             brushSize = select('#brushSize').value();
             brushColor = select('#colorPalette').value();
             stroke(brushColor);
             strokeWeight(brushSize);
 
-            // Event listeners
-            select('#brushSize').input(() => {
-                brushSize = select('#brushSize').value();
-                document.getElementById('brushSizeDisplay').innerText = brushSize;
-            });
-
-            select('#colorPalette').input(() => {
-                brushColor = select('#colorPalette').value();
-                brushPattern = null; // Reset pattern when color is picked
-            });
-
+            select('#brushSize').input(updateBrushSize);
+            select('#colorPalette').input(updateColor);
             select('#imageLoader').changed(loadPatternImage);
-
-            select('#saveButton').mousePressed(() => {
-                saveCanvas(cnv, 'drawing', 'png');
-            });
+            select('#saveButton').mousePressed(saveDrawing);
         }
 
         function draw() {
-            if (mouseIsPressed) {
-                if (mouseButton === LEFT) {
-                    stroke(brushPattern || brushColor);
-                    strokeWeight(brushSize);
-                    line(pmouseX, pmouseY, mouseX, mouseY);
-                }
+            if (frameCount % 10 === 0) {
+                drawMirroredLines();
             }
+        }
+
+        function drawMirroredLines() {
+            push();
+            translate(width / 2, height / 2);
+
+            let angleStep = TWO_PI / mirrorCount;
+            let x = random(-width / 2, width / 2);
+            let y = random(-height / 2, height / 2);
+
+            for (let i = 0; i < mirrorCount; i++) {
+                rotate(angleStep);
+                stroke(brushPattern || brushColor);
+                strokeWeight(brushSize);
+                line(0, 0, x, y);
+            }
+
+            pop();
         }
 
         function loadPatternImage() {
@@ -96,6 +98,20 @@
                     brushPattern = imgPattern;
                 });
             }
+        }
+
+        function updateBrushSize() {
+            brushSize = select('#brushSize').value();
+            document.getElementById('brushSizeDisplay').innerText = brushSize;
+        }
+
+        function updateColor() {
+            brushColor = select('#colorPalette').value();
+            brushPattern = null;
+        }
+
+        function saveDrawing() {
+            saveCanvas('drawing', 'png');
         }
     </script>
 </body>
