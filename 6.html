@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <title>MiCD5</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            background-color: #000000; /* Background color is black */
+            color: #FFFFFF; /* Font color is white */
+        }
+        #drawingCanvas {
+            border: 1px solid #000;
+            background-color: #fff;
+            touch-action: none;
+        }
+        .tool {
+            margin-top: 10px;
+        }
+        label {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="drawingCanvas"></div>
+    <div class="tool">
+        <label for="brushSize">Brush Size: <span id="brushSizeDisplay">5</span></label>
+        <input type="range" id="brushSize" min="1" max="50" value="5">
+    </div>
+    <div class="tool">
+        <label for="colorPalette">Choose Color:</label>
+        <input type="color" id="colorPalette" value="#000000">
+    </div>
+    <div class="tool">
+        <label for="imageLoader">Image Pattern (optional):</label>
+        <input type="file" id="imageLoader" accept="image/*">
+    </div>
+    <div class="tool">
+        <button id="saveButton">Save Drawing</button>
+    </div>
+
+    <script>
+        let brushSize, brushColor, brushPattern;
+        let imgPattern; // For the image pattern
+
+        function setup() {
+            let cnv = createCanvas(800, 800);
+            cnv.parent('drawingCanvas'); // Attach the canvas to the existing div
+            background(255); // Set initial canvas background
+
+            // Initial brush setup
+            brushSize = select('#brushSize').value();
+            brushColor = select('#colorPalette').value();
+            stroke(brushColor);
+            strokeWeight(brushSize);
+
+            // Event listeners
+            select('#brushSize').input(() => {
+                brushSize = select('#brushSize').value();
+                document.getElementById('brushSizeDisplay').innerText = brushSize;
+            });
+
+            select('#colorPalette').input(() => {
+                brushColor = select('#colorPalette').value();
+                brushPattern = null; // Reset pattern when color is picked
+            });
+
+            select('#imageLoader').changed(loadPatternImage);
+
+            select('#saveButton').mousePressed(() => {
+                saveCanvas(cnv, 'drawing', 'png');
+            });
+        }
+
+        function draw() {
+            if (mouseIsPressed) {
+                if (mouseButton === LEFT) {
+                    stroke(brushPattern || brushColor);
+                    strokeWeight(brushSize);
+                    line(pmouseX, pmouseY, mouseX, mouseY);
+                }
+            }
+        }
+
+        function loadPatternImage() {
+            if (document.getElementById('imageLoader').files.length > 0) {
+                imgPattern = loadImage(URL.createObjectURL(document.getElementById('imageLoader').files[0]), () => {
+                    brushPattern = imgPattern;
+                });
+            }
+        }
+    </script>
+</body>
+</html>
