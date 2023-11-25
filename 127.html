@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<title>MiCD5</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+    background-color: #000000; /* Background color is black */
+    color: #FFFFFF; /* Font color is white */
+  }
+  #drawingCanvas {
+    border: 1px solid #000;
+    background-color: #fff;
+    touch-action: none;
+  }
+  .tool {
+    margin-top: 10px;
+  }
+  label {
+    margin-right: 10px;
+  }
+</style>
+</head>
+<body>
+<canvas id="drawingCanvas" width="800" height="800"></canvas>
+<div class="tool">
+  <label for="mirrorCount">Mirror Count: <span id="mirrorCountDisplay">6</span></label>
+  <input type="range" id="mirrorCount" min="1" max="36" value="6">
+</div>
+<div class="tool">
+  <label for="brushSize">Dot Size: <span id="brushSizeDisplay">5</span></label>
+  <input type="range" id="brushSize" min="1" max="50" value="5">
+</div>
+<div class="tool">
+  <label for="centerX">Mirror Center X: <span id="centerXDisplay">400</span></label>
+  <input type="range" id="centerX" min="0" max="800" value="400">
+</div>
+<div class="tool">
+  <label for="centerY">Mirror Center Y: <span id="centerYDisplay">400</span></label>
+  <input type="range" id="centerY" min="0" max="800" value="400">
+</div>
+<div class="tool">
+  <label for="imageLoader">Image Pattern (optional):</label>
+  <input type="file" id="imageLoader" accept="image/*">
+</div>
+<div class="tool">
+  <button id="saveButton">Save Drawing</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('drawingCanvas');
+  const ctx = canvas.getContext('2d');
+  let isDrawing = false;
+  let mirrorCount = document.getElementById('mirrorCount').value;
+  let dotSize = document.getElementById('brushSize').value;
+  let mirrorCenterX = document.getElementById('centerX').value;
+  let mirrorCenterY = document.getElementById('centerY').value;
+  let brushPattern = null;
+
+  document.getElementById('mirrorCount').addEventListener('input', function(e) {
+    mirrorCount = e.target.value;
+    updateDisplay('mirrorCountDisplay', mirrorCount);
+  });
+
+  document.getElementById('brushSize').addEventListener('input', function(e) {
+    dotSize = e.target.value;
+    updateDisplay('brushSizeDisplay', dotSize);
+  });
+
+  document.getElementById('centerX').addEventListener('input', function(e) {
+    mirrorCenterX = e.target.value;
+    updateDisplay('centerXDisplay', mirrorCenterX);
+    drawGuideDot();
+  });
+
+  document.getElementById('centerY').addEventListener('input', function(e) {
+    mirrorCenterY = e.target.value;
+    updateDisplay('centerYDisplay', mirrorCenterY);
+    drawGuideDot();
+  });
+
+  document.getElementById('imageLoader').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+      setupBrushPattern(e.target.files[0]);
+    }
+  });
+
+  document.getElementById('saveButton').addEventListener('click', saveDrawing);
+
+  function updateDisplay(elementId, value) {
+    document.getElementById(elementId).innerText = value;
+  }
+
+  function setupBrushPattern(file) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      createPatternFromImage(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function createPatternFromImage(imageSrc) {
+    const img = new Image();
+    img.onload = function() {
+      const patternCanvas = document.createElement('canvas');
+      patternCanvas.width = canvas.width;
+      patternCanvas.height = canvas.height;
+      const patternCtx = patternCanvas.getContext('2d');
+      patternCtx.drawImage(img, 0, 0, patternCanvas.width, patternCanvas.height);
+      brushPattern = ctx.createPattern(patternCanvas, 'no-repeat');
+      drawGuideDot();
+    };
+    img.src = imageSrc;
+  }
+
+  function drawDot(x, y) {
+    if (!isDrawing || !brushPattern) return;
+    drawMirroredDots(x, y);
+    drawGuideDot();
+  }
+
+  function drawMirroredDots(x, y) {
+    const distance = calculateDistance(x, y, mirrorCenterX, mirrorCenterY);
+    const size = calculateDotSize(distance);
+    const angleIncrement = (Math.PI * 2) / mirrorCount;
+    ctx.save();
+    ctx.translate(mirrorCenterX, mirrorCenterY);
+    for (let i = 0; i < mirrorCount; i++) {
+      ctx.rotate(angleIncrement);
+      drawSingleDot(x - mirrorCenterX, y - mirrorCenterY, size);
+    }
+    ctx.restore();
+  }
+
+  function drawSingleDot(x, y, size) {
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = brushPattern;
+    ctx.fill();
+  }
+
+  function calculateDistance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+  }
+
+  function calculateDotSize(distance) {
+    const distanceRatio = distance / Math.sqrt(Math.pow(canvas.width, 2) + Math.pow(canvas.height, 2));
+    return dotSize * (1 - distanceRatio);
+  }
+
+  function drawGuideDot() {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(mirrorCenterX, mirrorCenterY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function saveDrawing() {
+    const dataURL = canvas.toDataURL('image/png');
+    const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '');
+    const filename = 'drawing_' + timestamp + '.png';
+    downloadImage(dataURL, filename);
+  }
+
+  function downloadImage(dataURL, filename) {
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function handleTouchEvents(e) {
+    if (!isDrawing) return;
+    const touch = getTouchPos(canvas, e.touches[0]);
+    drawDot(touch.x, touch.y);
+    e.preventDefault();
+  }
+
+  function getTouchPos(canvasDom, touch) {
+    const rect = canvasDom.getBoundingClientRect();
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    };
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    drawDot(e.offsetX, e.offsetY);
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (isDrawing) {
+      drawDot(e.offsetX, e.offsetY);
+    }
+  });
+
+  canvas.addEventListener('mouseup', () => isDrawing = false);
+  canvas.addEventListener('mouseout', () => isDrawing = false);
+
+  canvas.addEventListener('touchstart', handleTouchEvents, { passive: false });
+  canvas.addEventListener('touchmove', handleTouchEvents, { passive: false });
+  canvas.addEventListener('touchend', () => isDrawing = false);
+
+  drawGuideDot(); // Draw the guide dot initially
+</script>
+</body>
+</html>
