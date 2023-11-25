@@ -180,11 +180,28 @@
     document.body.removeChild(a);
   }
 
-  function handleTouchEvents(e) {
-    if (!isDrawing) return;
-    const touch = getTouchPos(canvas, e.touches[0]);
-    drawDot(touch.x, touch.y);
-    e.preventDefault();
+  function handleTouchStart(e) {
+    if (e.touches.length === 1) {
+      const touch = getTouchPos(canvas, e.touches[0]);
+      isDrawing = true;
+      drawDot(touch.x, touch.y);
+      e.preventDefault();
+    }
+  }
+
+  function handleTouchMove(e) {
+    if (isDrawing && e.touches.length === 1) {
+      const touch = getTouchPos(canvas, e.touches[0]);
+      drawDot(touch.x, touch.y);
+      e.preventDefault();
+    }
+  }
+
+  function handleTouchEnd(e) {
+    if (isDrawing) {
+      isDrawing = false;
+      e.preventDefault();
+    }
   }
 
   function getTouchPos(canvasDom, touch) {
@@ -193,6 +210,12 @@
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top
     };
+  }
+
+  function preventDefaultTouchActions(e) {
+    if (e.target === canvas) {
+      e.preventDefault();
+    }
   }
 
   canvas.addEventListener('mousedown', (e) => {
@@ -209,9 +232,11 @@
   canvas.addEventListener('mouseup', () => isDrawing = false);
   canvas.addEventListener('mouseout', () => isDrawing = false);
 
-  canvas.addEventListener('touchstart', handleTouchEvents, { passive: false });
-  canvas.addEventListener('touchmove', handleTouchEvents, { passive: false });
-  canvas.addEventListener('touchend', () => isDrawing = false);
+  canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+  canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+  canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+  document.body.addEventListener('touchstart', preventDefaultTouchActions, { passive: false });
+  document.body.addEventListener('touchmove', preventDefaultTouchActions, { passive: false });
 
   drawGuideDot(); // Draw the guide dot initially
 </script>
