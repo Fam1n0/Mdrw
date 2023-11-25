@@ -114,7 +114,7 @@
       patternCanvas.height = canvas.height;
       const patternCtx = patternCanvas.getContext('2d');
       patternCtx.drawImage(img, 0, 0, patternCanvas.width, patternCanvas.height);
-      brushPattern = ctx.createPattern(patternCanvas, 'no-repeat');
+      brushPattern = ctx.createPattern(patternCanvas, 'repeat');
       drawGuideDot();
     };
     img.src = imageSrc;
