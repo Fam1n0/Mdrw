@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cymatics Simulation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+        }
+        canvas {
+            border: 2px solid #fff;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .controls label {
+            margin-right: 10px;
+        }
+        .controls input[type="number"], .controls select {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label for="frequency-slider">Frequency (Hz):</label>
+        <input type="range" id="frequency-slider" min="1" max="100" value="50">
+        <input type="number" id="frequency-input" min="1" max="100" value="50">
+        <label for="shape-select">Shape:</label>
+        <select id="shape-select">
+            <option value="sphere">Sphere</option>
+            <option value="cube">Cube</option>
+            <option value="tetrahedron">Tetrahedron</option>
+            <option value="octahedron">Octahedron</option>
+            <option value="dodecahedron">Dodecahedron</option>
+            <option value="icosahedron">Icosahedron</option>
+        </select>
+    </div>
+    <div id="threejs-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, shapeMesh;
+        let frequency = 50;
+        const shapeSize = 5;
+        let touchPoints = [];
+        const damping = 0.99;
+
+        const container = document.getElementById('threejs-container');
+        const frequencySlider = document.getElementById('frequency-slider');
+        const frequencyInput = document.getElementById('frequency-input');
+        const shapeSelect = document.getElementById('shape-select');
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            camera.position.z = 20;
+
+            createShape('sphere', shapeSize);
+
+            animate();
+
+            container.addEventListener('touchstart', onTouch, false);
+            container.addEventListener('touchmove', onTouch, false);
+            container.addEventListener('mousemove', onMouseMove, false);
+        }
+
+        function createShape(shape, size) {
+            if (shapeMesh) {
+                scene.remove(shapeMesh);
+            }
+
+            let geometry;
+
+            switch (shape) {
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(size, 32, 32);
+                    break;
+                case 'cube':
+                    geometry = new THREE.BoxGeometry(size, size, size);
+                    break;
+                case 'tetrahedron':
+                    geometry = new THREE.TetrahedronGeometry(size);
+                    break;
+                case 'octahedron':
+                    geometry = new THREE.OctahedronGeometry(size);
+                    break;
+                case 'dodecahedron':
+                    geometry = new THREE.DodecahedronGeometry(size);
+                    break;
+                case 'icosahedron':
+                    geometry = new THREE.IcosahedronGeometry(size);
+                    break;
+                default:
+                    geometry = new THREE.SphereGeometry(size, 32, 32);
+            }
+
+            const material = new THREE.MeshBasicMaterial({ color: 0x0077ff, wireframe: true });
+            shapeMesh = new THREE.Mesh(geometry, material);
+            shapeMesh.geometry.dynamic = true;
+            shapeMesh.geometry.verticesNeedUpdate = true;
+            scene.add(shapeMesh);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateWavePattern();
+
+            renderer.render(scene, camera);
+        }
+
+        function updateWavePattern() {
+            const time = Date.now() * 0.001;
+            const waveAmplitude = 0.1;
+            const waveFrequency = frequency * 0.1;
+
+            const positions = shapeMesh.geometry.attributes.position.array;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const x = positions[i];
+                const y = positions[i + 1];
+                const z = positions[i + 2];
+
+                let wave = 0;
+                touchPoints.forEach(point => {
+                    const dx = x - point.x;
+                    const dy = y - point.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    wave += Math.sin(distance * waveFrequency - time) * waveAmplitude;
+                });
+
+                positions[i] = (x / shapeSize) * (shapeSize + wave);
+                positions[i + 1] = (y / shapeSize) * (shapeSize + wave);
+                positions[i + 2] = (z / shapeSize) * (shapeSize + wave);
+            }
+
+            shapeMesh.geometry.attributes.position.needsUpdate = true;
+            shapeMesh.rotation.y += 0.01;
+            shapeMesh.rotation.x += 0.005;
+        }
+
+        function createWaveAtTouchPoint(x, y) {
+            const rect = container.getBoundingClientRect();
+            const mouseX = (x / rect.width) * 2 - 1;
+            const mouseY = -(y / rect.height) * 2 + 1;
+            const vector = new THREE.Vector3(mouseX, mouseY, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = -camera.position.z / dir.z;
+            const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+            touchPoints.push(pos);
+        }
+
+        function onTouch(event) {
+            event.preventDefault();
+            const touch = event.touches[0];
+            createWaveAtTouchPoint(touch.clientX, touch.clientY);
+        }
+
+        function onMouseMove(event) {
+            createWaveAtTouchPoint(event.clientX, event.clientY);
+        }
+
+        frequencySlider.addEventListener('input', (e) => {
+            frequency = e.target.value;
+            frequencyInput.value = frequency;
+        });
+
+        frequencyInput.addEventListener('input', (e) => {
+            frequency = e.target.value;
+            frequencySlider.value = frequency;
+        });
+
+        shapeSelect.addEventListener('change', (e) => {
+            createShape(e.target.value, shapeSize);
+        });
+
+        init();
+    </script>
+</body>
+</html>
